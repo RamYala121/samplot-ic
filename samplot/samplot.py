@@ -372,9 +372,6 @@ def plot_coverage(
     ax2.spines["left"].set_visible(False)
     ax2.patch.set_visible(False)
     
-    return max_plot_depth
-# =========================================================================
-
     if 0 == max_plot_depth:
         max_plot_depth = 0.01
 
@@ -2922,11 +2919,22 @@ def plot_samples(
             curr_ax.tick_params(axis="y", labelsize=yaxis_label_fontsize)
             # if there's one hp, 6 ticks fit. Otherwise, do 3
             tick_count = 6 if len(hps) == 1 else 3
-            curr_ax.yaxis.set_major_locator(ticker.LinearLocator(tick_count))
-            curr_ax.ticklabel_format(useOffset=False, style='plain')
             
-            curr_ax.tick_params(axis="both", length=0)
-            curr_ax.set_xticklabels([])
+            # Directly set ticks and labels to bypass matplotlib's auto-generation
+            ymin, ymax = curr_ax.get_ylim()
+            tick_positions = [ymin + i * (ymax - ymin) / (tick_count - 1) for i in range(tick_count)]
+            tick_labels = [f'{int(pos)}' for pos in tick_positions]
+            curr_ax.set_yticks(tick_positions)
+            curr_ax.set_yticklabels(tick_labels)
+            
+# Allow the main genomic tracking axes to keep their ticks active for now
+# Do completely nothing to the X-axis of curr_ax here.
+            # Do not clear labels, do not set ticks to empty. Let matplotlib build them naturally.
+            
+            # Only clear the secondary background coverage layer's x-axis to prevent overlapping lines
+            from matplotlib.ticker import NullLocator
+            cover_axs[j].xaxis.set_major_locator(NullLocator())
+            cover_axs[j].xaxis.set_minor_locator(NullLocator())            
             if coverage_only:
                 curr_ax.yaxis.set_visible(False)
 
@@ -2940,16 +2948,19 @@ def plot_samples(
             curr_ax = axs[hps[-1]]
 
             labels = []
+            tick_positions = []
             if len(ranges) == 1:
+                tick_positions = curr_ax.xaxis.get_majorticklocs()
                 labels = [
                     int(ranges[0].start + l * (ranges[0].end - ranges[0].start))
-                    for l in curr_ax.xaxis.get_majorticklocs()
+                    for l in tick_positions
                 ]
             elif len(ranges) == 2:
                 x_ticks = curr_ax.xaxis.get_majorticklocs()
                 labels_per_range = int(
                     len(curr_ax.xaxis.get_majorticklocs()) / len(ranges)
                 )
+                tick_positions = x_ticks
                 labels = [
                     int(ranges[0].start + l * (ranges[0].end - ranges[0].start))
                     for l in x_ticks[:labels_per_range]
@@ -2967,7 +2978,9 @@ def plot_samples(
                 logger.error("Ranges greater than 2 are not supported")
                 sys.exit(1)
             
-            curr_ax.set_xticklabels(labels, fontsize=xaxis_label_fontsize)
+            # Explicitly set only our custom genomic position ticks, hiding defaults
+            curr_ax.xaxis.set_major_locator(ticker.FixedLocator(tick_positions))
+            curr_ax.set_xticklabels([str(l) for l in labels], fontsize=xaxis_label_fontsize, rotation=45, ha='right')
             chrms = [x.chrm for x in ranges]
             curr_ax.set_xlabel("Chromosomal position on " + "/".join(chrms), fontsize=8)
     
@@ -3647,9 +3660,83 @@ def plot(parser, options, extra_args=None):
 
     # save
     matplotlib.rcParams["agg.path.chunksize"] = 100000
-    plt.tight_layout(pad=0.8, h_pad=0.1, w_pad=0.1)
+    plt.tight_layout(pad=1.5, h_pad=0.2, w_pad=0.2)
+    
+    # Right before saving, ensure only the correct labels appear
+    axes_list = fig.get_axes()
+    for i, ax in enumerate(axes_list):
+        # For x-axis: only keep labels on the last (bottom) plot (chromosomal position)
+        if i != len(axes_list) - 1:
+            ax.set_xticks([])
+            ax.set_xticklabels([])
+        
+        
+        # For y-axis
+       # PASTE THIS NEW BLOCK EXACTLY HERE:
+# 1. Filter out the primary data axes from the background coverage layers
+    # 1. Filter out the primary data plots from the background coverage layers
+    # 1. Filter out only the primary data tracks
+    # 1. Filter out only the primary data tracks
+    # 1. Filter out only the primary data tracks
+    # 1. Filter out only the primary data tracks
+    # 1. Filter out only the primary data tracks
+    # 1. Filter out only the primary data tracks
+    primary_axes = [ax for ax in axes_list if ax.get_yaxis().get_label_position() == 'left']
+    
+    # 2. Separate true data subplots from any background overlay subplots
+    real_data_axes = []
+    for ax in primary_axes:
+        if ax.get_xlim() == (0.0, 1.0) and ax.get_ylim() == (0.0, 1.0):
+            ax.set_axis_off()
+        else:
+            real_data_axes.append(ax)
+            
+    # 3. Sort the real data subplots by physical layout position (top to bottom)
+    real_data_axes.sort(key=lambda ax: ax.get_position().y0, reverse=True)
+
+    for i, ax in enumerate(real_data_axes):
+        if i != len(real_data_axes) - 1:
+            # Hide X-axis tick numbers on inner/stacked sample tracks
+            ax.tick_params(axis='x', which='both', labelbottom=False, bottom=False)
+        else:
+            # This is the bottom-most track. Enable the x-axis lines explicitly
+            ax.xaxis.set_visible(True)
+            ax.tick_params(axis='x', which='both', labelbottom=True, bottom=True, length=4)
+            
+            # --- FORCE THE TRUE CORE POSITIONS DIRECTLY FROM OPTIONS OBJECT ---
+            try:
+                # Use Samplot's global option values directly to guarantee scope success
+                global_start = min(options.start) if isinstance(options.start, list) else options.start
+                global_end = max(options.end) if isinstance(options.end, list) else options.end
+                
+                import numpy as np
+                # Map 5 points onto the physical 0.0 to 1.0 range of the plot
+                xmin, xmax = ax.get_xlim()
+                tick_positions = np.linspace(xmin, xmax, 5)
+                
+                # Interpolate the real genomic numbers over those 5 ticks
+                tick_labels = np.linspace(global_start, global_end, 5).astype(int)
+                
+                ax.set_xticks(tick_positions)
+                ax.set_xticklabels([f"{label:,}" for label in tick_labels])
+            except Exception:
+                # If options object name differs, fallback to raw auto-ticks safely
+                from matplotlib.ticker import AutoLocator
+                ax.xaxis.set_major_locator(AutoLocator())
+            
+            # Ensure they are fully visible
+            for label in ax.get_xticklabels():
+                label.set_visible(True)
+            
+    # 4. Standardize right-side coverage panels exactly as Samplot expects
+    for ax in axes_list:
+        if ax.get_yaxis().get_label_position() == 'right':
+            if ax.get_xlim() == (0.0, 1.0) and ax.get_ylim() == (0.0, 1.0):
+                ax.set_axis_off()
+            else:
+                ax.tick_params(axis='y', labelright=True, right=True, length=4)
     try:
-        plt.savefig(output_file, dpi=options.dpi)
+        plt.savefig(output_file, dpi=options.dpi, bbox_inches='tight')
     except Exception as e:
         logger.error(
             "Failed to save figure {}".format(output_file)

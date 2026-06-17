@@ -42,13 +42,6 @@ def main(args=None):
         if not (len(args.chrom) == len(args.start) == len(args.end)):
             print("Error: The number of -c, -s, and -e arguments must be equal.", file=sys.stderr)
             sys.exit(1)
-
-        # For normal single-region runs, turn the single-item lists back into regular 
-        # strings/integers so the rest of Samplot's unpatched backend functions don't crash.
-        if len(args.chrom) == 1:
-            args.chrom = args.chrom[0]
-            args.start = args.start[0]
-            args.end = args.end[0]
     # =========================================================================
 
     args.func(parser, args, extra_args)
