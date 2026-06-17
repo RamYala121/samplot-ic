@@ -316,6 +316,65 @@ def plot_coverage(
     ax2 = ax.twinx()
     ax2.set_xlim([0, 1])
 
+    # =========================================================================
+    # PATCH FOR INTERCHROMOSOMAL COVERAGE RENDERING
+    # =========================================================================
+    # Fallback to prevent divide-by-zero or empty limits if no depth is present
+    if max_plot_depth <= 0:
+        max_plot_depth = 10
+
+    ax2.set_ylim([0, max_plot_depth])
+    
+    # Render the area curves representing high-quality vs low-quality depth
+    ax2.fill_between(
+        cover_x, 
+        0, 
+        cover_y_all, 
+        facecolor="grey", 
+        alpha=0.3, 
+        step="mid"
+    )
+    ax2.fill_between(
+        cover_x, 
+        0, 
+        cover_y_highqual, 
+        facecolor="darkgrey", 
+        alpha=0.5, 
+        step="mid"
+    )
+
+    # Format ticks and clean styling for the coverage panel axis
+    ax2.set_ylabel("Coverage", fontsize=yaxis_label_fontsize)
+    ax2.tick_params(axis="y", labelsize=yaxis_label_fontsize)
+    
+    # If dealing with separate chromosomes, draw clear breakpoint division anchors
+    if len(ranges) > 1:
+        for i in range(1, len(ranges)):
+            # Establish boundary coordinates between discrete chromosomal regions
+            boundary_x = float(i) / len(ranges)
+            ax2.axvline(
+                x=boundary_x, 
+                color="black", 
+                linestyle="--", 
+                linewidth=1.5, 
+                alpha=0.7
+            )
+            ax.axvline(
+                x=boundary_x, 
+                color="black", 
+                linestyle="--", 
+                linewidth=1.5, 
+                alpha=0.7
+            )
+    
+    # Hide top and side spines to preserve a clean layout
+    ax2.spines["top"].set_visible(False)
+    ax2.spines["left"].set_visible(False)
+    ax2.patch.set_visible(False)
+    
+    return max_plot_depth
+# =========================================================================
+
     if 0 == max_plot_depth:
         max_plot_depth = 0.01
 
