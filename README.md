@@ -149,9 +149,9 @@ options:
 </details>
 
 ## Installing
-`Samplot` is available from bioconda and is installable via the conda package manager:
+`Samplot` is available from pip and is installable via the pip package manager:
 ```
-conda install -c bioconda samplot 
+pip install samplot-ic 
 ```
 
 ## Examples: 
