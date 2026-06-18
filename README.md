@@ -5,8 +5,8 @@
 
 <center><img src="/doc/imgs/montage.jpg" width="100%"/></center>
 
-`samplot` is a command line tool for rapid, multi-sample structural variant
-visualization. `samplot` takes SV coordinates and bam files and produces
+`samplot-ic` is a command line tool for rapid, multi-sample structural variant
+visualization. `samplo-ict` takes SV coordinates and bam files and produces
 high-quality images that highlight any alignment and depth signals that
 substantiate the SV. This version of samplot supports inter-chromosomal data.
 
