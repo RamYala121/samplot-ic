@@ -8,17 +8,17 @@
 `samplot-ic` is a command line tool for rapid, multi-sample structural variant
 visualization. `samplo-ic` takes SV coordinates and bam files and produces
 high-quality images that highlight any alignment and depth signals that
-substantiate the SV. This version of samplot supports inter-chromosomal data.
+substantiate the SV. This version of samplot-ic supports inter-chromosomal data.
 
 If you use samplot, please cite https://genomebiology.biomedcentral.com/articles/10.1186/s13059-021-02380-5
 
 
 # Usage
 <details>
-  <summary>samplot plot</summary>
+  <summary>samplot-ic plot</summary>
   
   ```
-usage: samplot plot [-h] [-n TITLES [TITLES ...]] [-r REFERENCE] [-z Z] -b
+usage: samplot-ic plot [-h] [-n TITLES [TITLES ...]] [-r REFERENCE] [-z Z] -b
                     BAMS [BAMS ...] [-o OUTPUT_FILE] [--output_dir OUTPUT_DIR]
                     -s START -e END -c CHROM [-w WINDOW] [-d MAX_DEPTH]
                     [-t SV_TYPE] [-T TRANSCRIPT_FILE]
@@ -156,7 +156,7 @@ pip install samplot-ic
 
 ## Examples: 
 
-Samplot requires either BAM files or CRAM files as primary input. If you use
+samplot-ic requires either BAM files or CRAM files as primary input. If you use
 CRAM, you'll also need a reference genome. You can easily acquire a reference genome file with [GGD](https://github.com/gogetdata/ggd-cli), which is also available from conda.
 
 ### Basic use case
@@ -167,7 +167,7 @@ to that same region in two unrelated samples NA12889 and NA12890.
 
 The following command will create an image of that region:
 ```
-time samplot plot \
+time samplot-ic plot \
     -n NA12878 NA12889 NA12890 \
     -b samplot/test/data/NA12878_restricted.bam \
       samplot/test/data/NA12889_restricted.bam \
@@ -234,7 +234,7 @@ tabix rmsk.bed.gz
 
 Plot:
 ```
-samplot plot \
+samplot-ic plot \
     -n NA12878 NA12889 NA12890 \
     -b samplot/test/data/NA12878_restricted.bam \
       samplot/test/data/NA12889_restricted.bam \
@@ -258,10 +258,10 @@ you wish to plot, outputting images and an `index.html` page for review.
 
 ### Usage
 <details>
-  <summary> samplot vcf </summary>
+  <summary> samplot-ic vcf </summary>
   
   ```
-usage: samplot vcf [-h] [--vcf VCF] [-d OUT_DIR] [--ped PED] [--dn_only]
+usage: samplot-ic vcf [-h] [--vcf VCF] [-d OUT_DIR] [--ped PED] [--dn_only]
                    [--min_call_rate MIN_CALL_RATE] [--filter FILTER]
                    [-O {png,pdf,eps,jpg}] [--max_hets MAX_HETS]
                    [--min_entries MIN_ENTRIES] [--max_entries MAX_ENTRIES]
@@ -333,11 +333,11 @@ options:
   ```
 </details>
 
-`samplot vcf` can be used to quickly apply some basic filters to variants. Filters are applied via the `--filter` argument, which may be repeated as many times as desired. Each expression specified with the `--filter` option is applied separately in an OR fashion, which `&` characters may be used within a statement for AND operations. 
+`samplot-ic vcf` can be used to quickly apply some basic filters to variants. Filters are applied via the `--filter` argument, which may be repeated as many times as desired. Each expression specified with the `--filter` option is applied separately in an OR fashion, which `&` characters may be used within a statement for AND operations. 
 
 ### Example:
 ```
-samplot vcf \
+samplot-ic vcf \
     --filter "SVTYPE == 'DEL' & SU >= 8" \
     --filter "SVTYPE == 'INV' & SU >= 5" \
     --vcf example.vcf\
@@ -359,12 +359,12 @@ For more complex expression-based VCF filtering, try brentp's [slivar](https://g
 **Region restriction.** Variants can also be filtered by overlap with a set of region (for example, gene coordinates for genes correlated with a disease). The `important_regions` argument provides a BED file of such regions for this example.
 
 **Filtering for de novo SVs** 
-Using a [PED](https://gatkforums.broadinstitute.org/gatk/discussion/7696/pedigree-ped-files) file with `samplot vcf` allows filtering for variants that may be spontaneous/de novo variants. This filter is a simple Mendelian violation test. If a sample 1) has valid parent IDs in the PED file, 2) has a non-homref genotype (1/0, 0/1, or 1/1 in VCF), 3) passes filters, and 4) both parents have homref genotypes (0/0 in VCF), the sample may have a de novo variant. Filter parameters are not applied to the parents. The sample is plotted along with both parents, which are labeled as father and mother in the image. 
+Using a [PED](https://gatkforums.broadinstitute.org/gatk/discussion/7696/pedigree-ped-files) file with `samplot-ic vcf` allows filtering for variants that may be spontaneous/de novo variants. This filter is a simple Mendelian violation test. If a sample 1) has valid parent IDs in the PED file, 2) has a non-homref genotype (1/0, 0/1, or 1/1 in VCF), 3) passes filters, and 4) both parents have homref genotypes (0/0 in VCF), the sample may have a de novo variant. Filter parameters are not applied to the parents. The sample is plotted along with both parents, which are labeled as father and mother in the image. 
 
 Example call with the addition of a PED file:
 
 <pre>
-samplot vcf \
+samplot-ic vcf \
     --filter "SVTYPE == 'DEL' & SU >= 8" \
     --filter "SVTYPE == 'INV' & SU >= 5" \
     --vcf example.vcf\
@@ -378,19 +378,19 @@ samplot vcf \
 **Additional notes.** 
 * Variants where fewer than 95% of samples have a call (whether reference or alternate) will be excluded by default. This can be altered via the command-line argument `min_call_rate`.
 * If you're primarily interested in rare variants, you can use the `max_hets` filter to remove variants that appear in more than `max_hets` samples.
-* Large variants can now be plotted easily by samplot through use of `samplot plot`'s `zoom` argument. However, you can still choose to only plot variants larger than a given size using the `max_mb` argument. The `zoom` argument takes an integer parameter and shows only the intervals within +/- that parameter on either side of the breakpoints. A dotted line connects the ends of the variant call bar at the top of the window, showing that the region between breakpoint intervals is not shown.
+* Large variants can now be plotted easily by samplot-ic through use of `samplot-ic plot`'s `zoom` argument. However, you can still choose to only plot variants larger than a given size using the `max_mb` argument. The `zoom` argument takes an integer parameter and shows only the intervals within +/- that parameter on either side of the breakpoints. A dotted line connects the ends of the variant call bar at the top of the window, showing that the region between breakpoint intervals is not shown.
 * By default, if fewer than 6 samples have a variant and additional homref samples are given, control samples will be added from the homref group to reach a total of 6 samples in the plot. This number may be altered using the `min_entries` argument.
-* Arguments that are optional in `samplot plot` can by given as arguments to `samplot vcf`. They will be applied to each image generated.
+* Arguments that are optional in `samplot-ic plot` can by given as arguments to `samplot-ic vcf`. They will be applied to each image generated.
 
 
 #### CRAM inputs
-Samplot also support CRAM input, which requires a reference fasta file for
+samplot-ic also support CRAM input, which requires a reference fasta file for
 reading as noted above. Notice that the reference file is not included in this
 repository due to size. This time we'll plot an interesting duplication at
 X:101055330-101067156.
 
 ```
-samplot plot \
+samplot-ic plot \
     -n NA12878 NA12889 NA12890 \
     -b samplot/test/data/NA12878_restricted.cram \
       samplot/test/data/NA12889_restricted.cram \
@@ -409,7 +409,7 @@ The arguments used above are the same as those used for the basic use case, with
 `-r` The reference file used for reading CRAM files
 
 #### Plotting without the SV 
-Samplot can also plot genomic regions that are unrelated to an SV. If you do
+samplot-ic can also plot genomic regions that are unrelated to an SV. If you do
 not pass the SV type option (`-t`) then the top SV bar will go away and only
 the region that is given by `-c` `-s` and `-e` will be displayed.
 
