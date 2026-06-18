@@ -11,9 +11,12 @@ with open("samplot/__init__.py", "r") as fd:
         r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]', fd.read(), re.MULTILINE
     ).group(1)
 
-with open("requirements.txt", "r") as f:
-    requires = f.read().splitlines()
-
+# Look for this section around line 12 and replace it with this:
+try:
+    with open("requirements.txt", "r") as f:
+        requires = f.read().splitlines()
+except FileNotFoundError:
+    requires = []
 
 setup(
     name="samplot-ic", # 1. Changed to your unique fork name
