@@ -259,11 +259,10 @@ def add_coverage(read, coverage_matrix, offset, column):
 
 
 # }}}
-
 # {{{def plot_coverage(coverage,
 def plot_coverage(
     coverage,
-    ax,
+    main_axes,
     ranges,
     hp_count,
     max_coverage,
@@ -271,28 +270,38 @@ def plot_coverage(
     yaxis_label_fontsize,
     max_coverage_points,
 ):
-    """Plots high and low quality coverage for the region
-
-    User may specify a preference between stacked and superimposed 
-    superimposed may cause unexpected behavior if low-quality depth is
-    greater than high 
+    """Plots coverage across independent chromosomal regions (interchromosomal layout)
     """
-    cover_x = []
-    cover_y_lowqual = []
-    cover_y_highqual = []
-    cover_y_all = []
+    # Ensure main_axes is treated as a list-like structure even if a single subplot object is passed
+    if not isinstance(main_axes, (list, np.ndarray)):
+        main_axes = [main_axes]
 
-    for i in range(len(ranges)):
-        r = ranges[i]
-        region_len = r.end-r.start
+    coverage_twins = []
+
+    for idx, r in enumerate(ranges):
+        # Prevent index mismatch if samplot has fewer subplots than ranges
+        ax = main_axes[idx] if idx < len(main_axes) else main_axes[-1]
+        
+        cover_x = []
+        cover_y_lowqual = []
+        cover_y_highqual = []
+        cover_y_all = []
+        
+        region_len = r.end - r.start
         downsample = 1
         if region_len > max_coverage_points:
             downsample = int(region_len / max_coverage_points)
 
-        for i,pos in enumerate(range(r.start, r.end + 1)):
-            if i%downsample !=  0: 
+        for i, pos in enumerate(range(r.start, r.end + 1)):
+            if i % downsample != 0: 
                 continue
-            cover_x.append(map_genome_point_to_range_points(ranges, r.chrm, pos))
+            
+            # CRITICAL FOR SAMPLOT-IC: Scale x-axis locally (0.0 to 1.0) 
+            # relative ONLY to the current chromosome/range window bounds
+            local_x = float(pos - r.start) / float(region_len) if region_len > 0 else 0.0
+            cover_x.append(local_x)
+            
+            # Pull depth data specifically matching the active chromosome (r.chrm)
             if r.chrm in coverage and pos in coverage[r.chrm]:
                 cover_y_all.append(coverage[r.chrm][pos][0] + coverage[r.chrm][pos][1])
                 cover_y_highqual.append(coverage[r.chrm][pos][0])
@@ -301,135 +310,67 @@ def plot_coverage(
                 cover_y_lowqual.append(0)
                 cover_y_highqual.append(0)
                 cover_y_all.append(0)
-    cover_y_lowqual = np.array(cover_y_lowqual)
-    cover_y_highqual = np.array(cover_y_highqual)
-    cover_y_all = np.array(cover_y_all)
 
-    if max_coverage > 0:
-        max_plot_depth = max_coverage
-    elif cover_y_all.max() > 3 * cover_y_all.mean():
-        max_plot_depth = max(
-            np.percentile(cover_y_all, 99.5), np.percentile(cover_y_all, 99.5)
-        )
-    else:
-        max_plot_depth = np.percentile(cover_y_all.max(), 99.5)
-    ax2 = ax.twinx()
-    ax2.set_xlim([0, 1])
+        cover_y_lowqual = np.array(cover_y_lowqual)
+        cover_y_highqual = np.array(cover_y_highqual)
+        cover_y_all = np.array(cover_y_all)
 
-    # =========================================================================
-    # PATCH FOR INTERCHROMOSOMAL COVERAGE RENDERING
-    # =========================================================================
-    # Fallback to prevent divide-by-zero or empty limits if no depth is present
-    if max_plot_depth <= 0:
-        max_plot_depth = 10
-
-    ax2.set_ylim([0, max_plot_depth])
-    
-    # Render the area curves representing high-quality vs low-quality depth
-    ax2.fill_between(
-        cover_x, 
-        0, 
-        cover_y_all, 
-        facecolor="grey", 
-        alpha=0.3, 
-        step="mid"
-    )
-    ax2.fill_between(
-        cover_x, 
-        0, 
-        cover_y_highqual, 
-        facecolor="darkgrey", 
-        alpha=0.5, 
-        step="mid"
-    )
-
-    # Format ticks and clean styling for the coverage panel axis
-    ax2.set_ylabel("Coverage", fontsize=yaxis_label_fontsize)
-    ax2.tick_params(axis="y", labelsize=yaxis_label_fontsize)
-    
-    # If dealing with separate chromosomes, draw clear breakpoint division anchors
-    if len(ranges) > 1:
-        for i in range(1, len(ranges)):
-            # Establish boundary coordinates between discrete chromosomal regions
-            boundary_x = float(i) / len(ranges)
-            ax2.axvline(
-                x=boundary_x, 
-                color="black", 
-                linestyle="--", 
-                linewidth=1.5, 
-                alpha=0.7
+        if max_coverage > 0:
+            max_plot_depth = max_coverage
+        elif len(cover_y_all) > 0 and cover_y_all.max() > 3 * cover_y_all.mean():
+            max_plot_depth = max(
+                np.percentile(cover_y_all, 99.5), np.percentile(cover_y_all, 99.5)
             )
-            ax.axvline(
-                x=boundary_x, 
-                color="black", 
-                linestyle="--", 
-                linewidth=1.5, 
-                alpha=0.7
-            )
-    
-    # Hide top and side spines to preserve a clean layout
-    ax2.spines["top"].set_visible(False)
-    ax2.spines["left"].set_visible(False)
-    ax2.patch.set_visible(False)
-    
-    if 0 == max_plot_depth:
-        max_plot_depth = 0.01
+        else:
+            max_plot_depth = np.percentile(cover_y_all.max(), 99.5) if len(cover_y_all) > 0 else 0
 
-    ax2.set_ylim([0, max(1, max_plot_depth)])
-    bottom_fill = np.zeros(len(cover_y_all))
-    if tracktype == "stack":
-        ax2.fill_between(
-            cover_x,
-            cover_y_highqual,
-            bottom_fill,
-            color="darkgrey",
-            step="pre",
-            alpha=0.4,
-        )
+        if max_plot_depth <= 0:
+            max_plot_depth = 10
 
-        ax2.fill_between(
-            cover_x, cover_y_all, cover_y_highqual, color="grey", step="pre", alpha=0.15
-        )
+        ax2 = ax.twinx()
+        ax2.set_xlim([0, 1])
+        ax2.set_ylim([0, max(1, max_plot_depth)])
+        
+        bottom_fill = np.zeros(len(cover_y_all))
+        
+        # Plotting the tracks based on type ("stack", "superimpose", or default area)
+        if tracktype == "stack" and len(cover_x) > 0:
+            ax2.fill_between(cover_x, cover_y_highqual, bottom_fill, color="darkgrey", step="pre", alpha=0.4)
+            ax2.fill_between(cover_x, cover_y_all, cover_y_highqual, color="grey", step="pre", alpha=0.15)
+        elif tracktype == "superimpose" and len(cover_x) > 0:
+            ax2.fill_between(cover_x, cover_y_lowqual, bottom_fill, color="grey", step="pre", alpha=0.15)
+            ax2.fill_between(cover_x, cover_y_highqual, cover_y_lowqual, color="darkgrey", step="pre", alpha=0.4)
+        elif len(cover_x) > 0:
+            ax2.fill_between(cover_x, 0, cover_y_all, facecolor="grey", alpha=0.3, step="mid")
+            ax2.fill_between(cover_x, 0, cover_y_highqual, facecolor="darkgrey", alpha=0.5, step="mid")
 
-    elif tracktype == "superimpose":
-        ax2.fill_between(
-            cover_x, cover_y_lowqual, bottom_fill, color="grey", step="pre", alpha=0.15
-        )
+        # Layout styling for clear multi-chromosome separation
+        if idx == len(ranges) - 1:
+            ax2.set_ylabel("Coverage", fontsize=yaxis_label_fontsize)
+            ax2.tick_params(axis="y", labelsize=yaxis_label_fontsize)
+        else:
+            ax2.set_yticklabels([])
 
-        ax2.fill_between(
-            cover_x,
-            cover_y_highqual,
-            cover_y_lowqual,
-            color="darkgrey",
-            step="pre",
-            alpha=0.4,
-        )
+        ax2.spines["top"].set_visible(False)
+        ax2.spines["left"].set_visible(False)
+        ax2.spines["bottom"].set_visible(False)
+        ax2.spines["right"].set_visible(False)
+        ax2.patch.set_visible(False)
+        
+        tick_count = 5 if hp_count == 1 else 2
+        tick_count = max(int(max_plot_depth / tick_count), 1)
 
-        ax2.fill_between(
-            cover_x, cover_y_lowqual, bottom_fill, color="grey", step="pre", alpha=0.15
-        )
-    ## tracktype==None also allowed
+        ax2.yaxis.set_major_locator(ticker.MultipleLocator(tick_count))
+        ax2.tick_params(axis="y", colors="grey", labelsize=yaxis_label_fontsize)
+        ax2.tick_params(axis="x", length=0)
+        ax2.tick_params(axis="y", length=0)
+        
+        coverage_twins.append(ax2)
 
-    # number of ticks should be 6 if there's one hp, 3 otherwise
-    tick_count = 5 if hp_count == 1 else 2
-    tick_count = max(int(max_plot_depth / tick_count), 1)
+    return coverage_twins[0]
 
-    # set axis parameters
-    #ax2.yaxis.set_major_locator(ticker.FixedLocator(tick_count))
-    ax2.yaxis.set_major_locator(ticker.MultipleLocator(tick_count))
-    ax2.tick_params(axis="y", colors="grey", labelsize=yaxis_label_fontsize)
-    ax2.spines["top"].set_visible(False)
-    ax2.spines["bottom"].set_visible(False)
-    ax2.spines["left"].set_visible(False)
-    ax2.spines["right"].set_visible(False)
-    ax2.tick_params(axis="x", length=0)
-    ax2.tick_params(axis="y", length=0)
 
-    # break the variant plot when we have multiple ranges
-    for i in range(1, len(ranges)):
-        ax2.axvline(x=1.0 / len(ranges), color="white", linewidth=5)
-
-    return ax2
+# }}}
 
 
 # }}}
