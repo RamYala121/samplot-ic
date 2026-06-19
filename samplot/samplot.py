@@ -2922,9 +2922,26 @@ def plot_samples(
             # Explicitly set only our custom genomic position ticks, hiding defaults
             curr_ax.xaxis.set_major_locator(ticker.FixedLocator(tick_positions))
             curr_ax.set_xticklabels([str(l) for l in labels], fontsize=xaxis_label_fontsize, rotation=45, ha='right')
-            chrms = [x.chrm for x in ranges]
-            curr_ax.set_xlabel("Chromosomal position on " + "/".join(chrms), fontsize=8)
-    
+            
+            # --- FIX: Pull names dynamically from the active ranges list ---
+            # --- DYNAMIC INTERCHROMOSOMAL FIX ---
+            import sys
+            # Check if user typed multiple chromosomes in the terminal command line
+            cmd_args = sys.argv
+            chr_inputs = []
+            for arg in cmd_args:
+                if arg.startswith('chr') and arg not in chr_inputs:
+                    chr_inputs.append(arg.replace('chr', ''))
+            
+            if len(chr_inputs) > 1:
+                curr_ax.set_xlabel("Chromosomal position on " + "/".join(chr_inputs), fontsize=8)
+            elif isinstance(chrom, list) and len(chrom) > 0:
+                clean_chrms = sorted(list(set([str(c).replace('chr', '') for c in chrom])))
+                curr_ax.set_xlabel("Chromosomal position on " + "/".join(clean_chrms), fontsize=8)
+            else:
+                chrms = [str(x.chrm).replace('chr', '') for x in ranges]
+                curr_ax.set_xlabel("Chromosomal position on " + "/".join(chrms), fontsize=8)
+                
         curr_ax = axs[hps[int(len(hps) / 2)]]
         curr_ax.set_ylabel("Insert size", fontsize=8)
         cover_ax = cover_axs[hps[int(len(hps) / 2)]]
